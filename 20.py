@@ -1,21 +1,34 @@
-
 def check_winner(board):
-    print(board)
-    if board[0][0] == board[1][0] == board[2][0]: #pion1
-        return board[0][0]
-    elif board[0][1] == board[1][1] == board[2][1]: #pion2
-        return board[0][1]
-    elif board[0][1] == board[1][1] == board[2][1]: #pion3
-        return board[0][2]
-    elif board[0][0] == board[0][1] == board[0][2]: #poziom1
-            return board[0][0]
-    elif board[1][0] == board[1][1] == board[1][2]: #poziom2
-        return board[1][0]
-    elif board[2][0] == board[2][1] == board[2][2]: #poziom3
-        return board[2][0]
-    elif board[0][0] == board[1][1] == board[2][2]: #skos1
-        return board[0][0]
-    elif board[0][2] == board[1][1] == board[2][0]: #skos2
-        return board[0][2]
-    else:
-        return "Draw"
+    # kolumny
+    for j in range(len(board[0])):
+        a = []
+        for i in range(len(board)):
+            a.append(board[i][j])
+        if len(set(a)) == 1:
+            return a[0]
+
+    # wiersze
+    for wiersz in board:
+        if len(set(wiersz)) == 1:
+            return wiersz[0]
+
+    # skosy
+    g = []
+    for i in range(len(board)):
+        g.append(board[i][i])
+    if len(set(g)) == 1:
+        return g[0]
+
+    h = []
+    for i in range(len(board)):
+        h.append(board[i][len(board) - 1 - i])
+    if len(set(h)) == 1:
+        return h[0]
+    return "Draw"
+
+
+print(check_winner(board = [
+    ["A", "V", "Z"],
+    ["b", "Z", "N"],
+    ["Z", "V", "Z"]
+]))
