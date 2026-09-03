@@ -129,7 +129,7 @@ def test_check_winner_diagonal(): #20
 
 def test_check_winner_draw(): #20
     assert f.check_winner(board = [
-    ["x", "x", "o"],
+    ["o", "x", "o"],
     ["o", "x", "o"],
     ["x", "o", "x"]
     ]) == "Draw"
