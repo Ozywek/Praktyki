@@ -11,20 +11,28 @@ class Student:
             return True
         else:
             return False
-#
-# def DO_SPYTANIA(students):
-#     passed = []
-#     for i in students:
-#         if i.has_passed() == True:
-#             passed.append(i)
-#     return passed
+
+def passing_students(students):
+    passed = []
+    for i in students:
+        if i.has_passed() == True:
+            passed.append(i.name)
+    return passed
+
+def best_student(students):
+    biggest = sum(students[0].grades)/len(students[0].grades)
+    name = students[0].name
+    for i in students:
+        if sum(i.grades)/len(i.grades) > biggest:
+            biggest = sum(i.grades)/len(i.grades)
+            name = i.name
+    return biggest, name
 
 def student_names(students):
     names = []
     for i in students:
-        names.append(i)
+        names.append(i.name)
     return names
-
 
 students = [
     Student("Adam", [5, 4, 3]),
@@ -33,5 +41,6 @@ students = [
     Student("Ola", [3, 2, 2]),
 ]
 
-
-
+print(student_names(students))
+print(passing_students(students))
+print(best_student(students))
