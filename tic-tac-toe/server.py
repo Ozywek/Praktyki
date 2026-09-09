@@ -90,5 +90,17 @@ def reset():
 
 @app.post("/game/move")
 def make_move(move: Move):
+    # if not isinstance(move.index , int):
+    #     raise HTTPException(status_code=422, detail="Index is not an integer")
+    if move.index > 8:
+        raise HTTPException(status_code=422, detail="Index out of range")
+    elif game.dict["finished"]:
+        raise HTTPException(status_code=409, detail="Game already ended")
+    elif game.dict["board"][move.index] != None:
+        raise HTTPException(status_code=409, detail="Cell is already taken")
+
+
     return game.one_move(move.index)
+
+
 
