@@ -2,6 +2,8 @@ import app
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import HTTPException
+
 app = FastAPI()
 
 app.add_middleware(
@@ -10,6 +12,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class Move(BaseModel):
+    index: int
 
 class Game:
     dict = {
@@ -30,19 +35,49 @@ class Game:
         "draw": False,
         "finished": False
     }
+    def check_winner(self):
+        winning = [
+            (0, 1, 2),
+            (3, 4, 5),
+            (6, 7, 8),
+            (0, 3, 6),
+            (1, 4, 7),
+            (2, 5, 8),
+            (0, 4, 8),
+            (2, 4, 6)
+        ]
+        for a, b, c in winning:
+            if self.dict["board"][a] == self.dict["board"][b] == self.dict["board"][c] and self.dict["board"][a] != None:
+                return [a, b, c]
+        return False
 
-    def making_move(self, ind):
+    def check_draw(self):
+        if not None in self.dict["board"]:
+            return True
+        else:
+            return False
+
+    def one_move(self, ind):
         self.dict["board"][ind] = self.dict["current"]
-        if self.dict["current"] == "X":
-            self.dict["current"] = "O"
-        else: self.dict["current"] = "X"
+
+        if self.check_draw() == False:
+            if (a := self.check_winner()) == False:
+            # if self.check_winner() == False:
+                if self.dict["current"] == "X":
+                    self.dict["current"] = "O"
+                else:
+                    self.dict["current"] = "X"
+            else:
+                self.dict["winning_line"] = a
+                self.dict["winner"] = self.dict["current"]
+                self.dict["finished"] = True
+        else:
+            self.dict["draw"] = True
+            self.dict["finished"] = True
 
         return self.dict
 
 game = Game()
-
-class Move(BaseModel):
-    index: int
 
 @app.get("/game")
 def root():
@@ -55,4 +90,5 @@ def reset():
 
 @app.post("/game/move")
 def make_move(move: Move):
-    return game.making_move(move.index)
+    return game.one_move(move.index)
+
