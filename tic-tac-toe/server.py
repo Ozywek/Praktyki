@@ -1,6 +1,7 @@
 import app
 from fastapi import FastAPI
-from pydantic import BaseModel
+from typing import Annotated
+from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import HTTPException
 
@@ -14,7 +15,7 @@ app.add_middleware(
 )
 
 class Move(BaseModel):
-    index: int
+  index: Annotated[int, Field(ge=0, le=8)]
 
 class Game:
     dict = {
@@ -76,6 +77,17 @@ class Game:
             self.dict["finished"] = True
 
         return self.dict
+    def is_finished(self):
+        if self.dict["finished"]:
+            return  True
+        else:
+            return False
+
+    def is_taken(self, ind):
+        if game.dict["board"][ind] != None:
+            return True
+        else: return False
+
 
 game = Game()
 
@@ -90,15 +102,11 @@ def reset():
 
 @app.post("/game/move")
 def make_move(move: Move):
-    # if not isinstance(move.index , int):
-    #     raise HTTPException(status_code=422, detail="Index is not an integer")
-    if move.index > 8:
-        raise HTTPException(status_code=422, detail="Index out of range")
-    elif game.dict["finished"]:
-        raise HTTPException(status_code=409, detail="Game already ended")
-    elif game.dict["board"][move.index] != None:
-        raise HTTPException(status_code=409, detail="Cell is already taken")
 
+    if game.is_finished():
+        raise HTTPException(status_code=409, detail="Game already ended")
+    elif game.is_taken(move.index):
+        raise HTTPException(status_code=409, detail="Cell is already taken")
 
     return game.one_move(move.index)
 
