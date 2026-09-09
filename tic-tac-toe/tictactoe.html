@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tic Tac Toe</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    font-family: system-ui, sans-serif;
+    background: #14161a;
+    color: #e8e8ea;
+  }
+  h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: .04em; }
+  #status { font-size: 17px; min-height: 24px; }
+  #status.error { color: #ff7a7a; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 90px);
+    grid-template-rows: repeat(3, 90px);
+    gap: 6px;
+  }
+  .cell {
+    font-size: 44px;
+    font-family: inherit;
+    color: #e8e8ea;
+    background: #23262d;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .cell:hover:not(:disabled) { background: #2e333c; }
+  .cell:disabled { cursor: default; }
+  .cell.win { background: #2f6b4f; color: #fff; }
+  #new {
+    font: inherit;
+    padding: 9px 20px;
+    border: 1px solid #3a3f49;
+    border-radius: 8px;
+    background: #23262d;
+    color: #e8e8ea;
+    cursor: pointer;
+  }
+  #new:hover { background: #2e333c; }
+</style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+  <div id="status">Loading…</div>
+  <div id="board"></div>
+  <button id="new">New game</button>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const boardEl = document.getElementById("board");
+const statusEl = document.getElementById("status");
+
+const cells = Array.from({ length: 9 }, (_, i) => {
+  const button = document.createElement("button");
+  button.className = "cell";
+  button.addEventListener("click", () => move(i));
+  boardEl.appendChild(button);
+  return button;
+});
+
+async function call(path, options) {
+  const response = await fetch(API + path, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || response.statusText);
+  return data;
+}
+
+function render(state) {
+  statusEl.classList.remove("error");
+  cells.forEach((cell, i) => {
+    cell.textContent = state.board[i] || "";
+    cell.disabled = state.finished || state.board[i] !== null;
+    cell.classList.toggle("win", (state.winning_line || []).includes(i));
+  });
+  if (state.winner) statusEl.textContent = `${state.winner} wins!`;
+  else if (state.draw) statusEl.textContent = "Draw";
+  else statusEl.textContent = `Turn: ${state.current}`;
+}
+
+function showError(error) {
+  statusEl.textContent = error.message;
+  statusEl.classList.add("error");
+}
+
+async function move(index) {
+  try {
+    render(await call("/game/move", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ index }),
+    }));
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function newGame() {
+  try {
+    render(await call("/game", { method: "POST" }));
+  } catch (error) {
+    showError(error);
+  }
+}
+
+document.getElementById("new").addEventListener("click", newGame);
+
+call("/game").then(render).catch(showError);
+</script>
+</body>
+</html>
