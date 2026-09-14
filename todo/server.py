@@ -104,3 +104,4 @@ def delete_task(task_id: int):
 # todo:
 # - change sql to prevent htmlinjections
 # - moving logic to functions
+# a
