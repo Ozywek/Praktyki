@@ -18,9 +18,9 @@ def connect():
     return connection
 
 
-def execute(sql):
+def execute(sql, params=()):
     with closing(connect()) as connection:
-        rows = connection.execute(sql).fetchall()
+        rows = connection.execute(sql, params).fetchall()
         connection.commit()
         return rows
 
@@ -39,6 +39,10 @@ execute(
 def as_task(row):
     return {"id": row["id"], "title": row["title"], "done": bool(row["done"])}
 
+def is_invalid(title):
+    if len(title) > 200 or title == "":
+       return True
+    else: return False
 
 class TaskCreation(BaseModel):
     title: str
@@ -61,14 +65,16 @@ def list_tasks():
 def create_task(task: TaskCreation):
 
     task.title = task.title.strip()
-    if len(task.title) > 200 or task.title == "":
+    if is_invalid(task.title):
         raise HTTPException(status_code=422, detail="Invalid or blank title")
     else:
         execute(
-            'INSERT INTO tasks (title, done) VALUES (' + '\"' + task.title + '\"' +', 0)',
+            'INSERT INTO tasks (title, done) VALUES (?, ?)',
+            (task.title, 0),
         )
         rows = execute(
-            'SELECT id, title, done FROM tasks WHERE title = "' + task.title + '" ORDER BY id DESC LIMIT 1'
+            'SELECT id, title, done FROM tasks WHERE title = ? ORDER BY id DESC LIMIT 1',
+            (task.title,),
         )
 
         return as_task(rows[0])
@@ -76,32 +82,36 @@ def create_task(task: TaskCreation):
 @app.patch("/tasks/{task_id}")
 def update_task(task_id: int, done: TaskUpdate):
     rows = execute(
-        "SELECT id, title, done FROM tasks WHERE id = " + str(task_id)
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (str(task_id),),
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Task not found")
     execute(
-        "UPDATE tasks SET done = " + str(int(done.done)) + " WHERE id = " + str(task_id)
+        "UPDATE tasks SET done = ? WHERE id = ?",
+        (str(int(done.done)), str(task_id))
     )
     rows = execute(
-        "SELECT id, title, done FROM tasks WHERE id = " + str(task_id)
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (str(task_id),)
     )
     return as_task(rows[0])
 
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
     rows = execute(
-        "SELECT id FROM tasks WHERE id = " + str(task_id)
+        "SELECT id FROM tasks WHERE id = ?",
+        (str(task_id),)
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Task not found")
 
     execute(
-        "DELETE FROM tasks WHERE id = " + str(task_id)
-    )
+        "DELETE FROM tasks WHERE id = ?",
+        (str(task_id),)
+    )   
 
 #
 # todo:
-# - change sql to prevent htmlinjections
-# - moving logic to functions
+# - change sql to prevent sqlinjections
 # a
