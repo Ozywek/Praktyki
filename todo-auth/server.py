@@ -46,16 +46,7 @@ def execute(sql, params=()):
         return rows
 
 
-execute(
-    """
-    CREATE TABLE IF NOT EXISTS tasks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        done INTEGER NOT NULL DEFAULT 0,
-        user_id INTEGER NOT NULL REFERENCES users(id)
-    )
-    """
-)
+
 execute(
     """
     CREATE TABLE IF NOT EXISTS users (
@@ -73,7 +64,16 @@ execute(
     )
     """
 )
-
+execute(
+    """
+    CREATE TABLE IF NOT EXISTS tasks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0,
+        user_id INTEGER NOT NULL REFERENCES users(id)
+    )
+    """
+)
 
 
 def as_task(row):
@@ -106,15 +106,24 @@ def create_session(user_id, response):
     )
 
 
-def current_session():
-    """
-    Dependency: resolve the session_id cookie to a session row joined with its user.
+def current_session(session_id: str | None = Cookie(default=None)):
+    if session_id is None:
+        raise HTTPException(status_code=401, detail="Not logged in")
 
-    Cookie: session_id
-    Returns: row with at least session id, user id and login.
-    Raises: HTTPException 401 {"detail": "Not logged in"}  # missing or unknown session_id
-    """
-    raise NotImplementedError
+    rows = execute(
+        """
+        SELECT sessions.token, users.id, users.login
+        FROM sessions
+        JOIN users ON sessions.user_id = users.id
+        WHERE sessions.token = ?
+        """,
+        (session_id,)
+    )
+
+    if not rows:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    return rows[0]
 
 
 @app.get("/")
@@ -123,57 +132,75 @@ def index():
 
 
 @app.get("/tasks")
-def list_tasks():
-    rows = execute("SELECT * FROM tasks ORDER BY done ASC, id DESC")
+def list_tasks(session=Depends(current_session)):
+    rows = execute(
+        """SELECT id, title, done FROM tasks WHERE user_id = ? ORDER BY done ASC, id DESC""",
+        (session["id"],)
+    )
+
     return [as_task(task) for task in rows]
 
 
 
-
 @app.post("/tasks", status_code=201)
-def create_task(task: TaskCreation):
-
+def create_task(task: TaskCreation, session=Depends(current_session)):
     task.title = task.title.strip()
 
     if is_invalid(task.title):
         raise HTTPException(status_code=422, detail="Invalid or blank title")
-    else:
-        execute(
-            'INSERT INTO tasks (title, done) VALUES (?, ?)',
-            (task.title, 0),
-        )
-        rows = execute(
-            'SELECT id, title, done FROM tasks WHERE title = ? ORDER BY id DESC LIMIT 1',
-            (task.title,),
-        )
 
-        return as_task(rows[0])
+    execute(
+        """INSERT INTO tasks (title, done, user_id) VALUES (?, ?, ?)""",
+        (task.title, 0, session["id"])
+    )
+
+    rows = execute(
+        """SELECT id, title, done FROM tasks WHERE user_id = ? ORDER BY id DESC LIMIT 1""",
+        (session["id"],)
+    )
+
+    return as_task(rows[0])
 
 
 @app.patch("/tasks/{task_id}")
-def update_task(task_id: int):
-    """
-    Toggle a task between done and not done.
+def update_task(task_id: int, task: TaskUpdate, session=Depends(current_session)):
+    rows = execute(
+        """SELECT id, title, done FROM tasks WHERE id = ? AND user_id = ?""",
+        (task_id, session["id"])
+    )
 
-    Path params: task_id: int
-    Request body: {"done": bool}
-    Response 200: {"id": int, "title": str, "done": bool}
-    Response 404: {"detail": "Task not found"}
-    """
-    raise NotImplementedError
+    if not rows:
+        raise HTTPException(status_code=404,detail="Task not found")
+
+    execute(
+        """UPDATE tasks SET done = ? WHERE id = ? AND user_id = ?""",
+        (int(task.done), task_id, session["id"])
+    )
+
+    rows = execute(
+        """SELECT id, title, done FROM tasks WHERE id = ? AND user_id = ?""",
+        (task_id, session["id"])
+    )
+
+    return as_task(rows[0])
+
 
 
 @app.delete("/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int):
-    """
-    Delete a task.
+def delete_task(task_id: int, session=Depends(current_session)):
+    rows = execute(
+        """SELECT id FROM tasks WHERE id = ? AND user_id = ?""",
+        (task_id, session["id"])
+    )
 
-    Path params: task_id: int
-    Request body: none.
-    Response 204: no body.
-    Response 404: {"detail": "Task not found"}
-    """
-    raise NotImplementedError
+    if not rows:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    execute(
+        """DELETE FROM tasks WHERE id = ? AND user_id = ?""",
+        (task_id, session["id"])
+    )
+
 
 
 @app.post("/register", status_code=201)
@@ -210,39 +237,21 @@ def login(user: User, response: Response):
 
     return as_user(rows[0])
 
-    """
-    Check credentials and start a session.
-
-    Request body: {"login": str, "password": str}
-    Response 200: {"id": int, "login": str}
-        + Set-Cookie: session_id=<random token>; HttpOnly; SameSite=Lax
-        (the token is stored in the sessions table together with the user id)
-    Response 401: {"detail": "Invalid login or password"}
-    """
-    # raise NotImplementedError
-
 
 @app.get("/me")
-def me():
-    """
-    Return the user owning the current session.
-
-    Cookie: session_id
-    Request body: none.
-    Response 200: {"id": int, "login": str}
-    Response 401: {"detail": "Not logged in"}  # missing or unknown session_id
-    """
-    raise NotImplementedError
+def me(session=Depends(current_session)):
+    return as_user(session)
 
 
 @app.post("/logout", status_code=204)
-def logout():
-    """
-    End the current session.
+def logout(
+    response: Response,
+    session=Depends(current_session),
+    session_id: str | None = Cookie(default=None)
+):
+    execute(
+        "DELETE FROM sessions WHERE token = ?",
+        (session_id,)
+    )
 
-    Cookie: session_id
-    Request body: none.
-    Response 204: no body; the session row is deleted and the cookie is cleared.
-    Response 401: {"detail": "Not logged in"}
-    """
-    raise NotImplementedError
+    response.delete_cookie(SESSION_COOKIE)
