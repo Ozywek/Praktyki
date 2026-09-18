@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todo</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f6f4;
+    --card: #ffffff;
+    --text: #1c1c1a;
+    --muted: #8a8a82;
+    --line: #e6e6e1;
+    --accent: #c65d3b;
+    --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a;
+      --card: #1e1e24;
+      --text: #ececf0;
+      --muted: #85858f;
+      --line: #2c2c34;
+      --accent: #e0794f;
+      --danger: #e06c5b;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 48px 16px;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+
+  #counter {
+    color: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  form {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  input[type="text"],
+  input[type="password"] {
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--card);
+    color: inherit;
+    font: inherit;
+    transition: border-color 0.15s;
+  }
+
+  input[type="text"]:focus,
+  input[type="password"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+  }
+
+  form button {
+    padding: 12px 20px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 500;
+    transition: opacity 0.15s;
+  }
+
+  form button:hover { opacity: 0.88; }
+  form button:disabled { opacity: 0.45; cursor: default; }
+
+  #user {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  #logout {
+    padding: 0;
+    background: none;
+    color: var(--accent);
+    font-size: 13px;
+  }
+
+  #logout:hover { text-decoration: underline; }
+
+  #auth {
+    margin-bottom: 8px;
+    padding: 20px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: var(--bg);
+    border-radius: 10px;
+  }
+
+  .tabs button {
+    flex: 1;
+    padding: 8px;
+    background: none;
+    color: var(--muted);
+    font-weight: 500;
+    border-radius: 8px;
+  }
+
+  .tabs button[aria-selected="true"] {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  }
+
+  #auth form {
+    flex-direction: column;
+    margin: 0;
+  }
+
+  #auth input {
+    width: 100%;
+  }
+
+  #error {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: var(--danger);
+    font-size: 13px;
+  }
+
+  #error[hidden] { display: none; }
+
+  ul {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    border-top: 1px solid var(--line);
+    animation: appear 0.18s ease-out;
+  }
+
+  li:first-child { border-top: none; }
+
+  @keyframes appear {
+    from { opacity: 0; transform: translateY(-4px); }
+  }
+
+  input[type="checkbox"] {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .title {
+    flex: 1;
+    word-break: break-word;
+  }
+
+  li.done .title {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+
+  .remove {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    background: none;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    opacity: 0.4;
+    transition: opacity 0.15s, color 0.15s;
+  }
+
+  li:hover .remove,
+  .remove:focus-visible { opacity: 1; }
+  .remove:hover { color: var(--danger); opacity: 1; }
+
+  #empty {
+    margin: 16px 0 0;
+    padding: 40px 16px;
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Todo</h1>
+    <span id="counter"></span>
+    <span id="user" hidden>
+      <span id="user-login"></span>
+      <button type="button" id="logout">Log out</button>
+    </span>
+  </header>
+
+  <section id="auth" hidden>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" data-tab="login" aria-selected="true">Log in</button>
+      <button type="button" role="tab" data-tab="register" aria-selected="false">Register</button>
+    </div>
+
+    <form id="login-form" data-panel="login">
+      <input type="text" name="login" placeholder="Login" autocomplete="username" required>
+      <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit">Log in</button>
+    </form>
+
+    <form id="register-form" data-panel="register" hidden>
+      <input type="text" name="login" placeholder="Login" autocomplete="username" required>
+      <input type="password" name="password" placeholder="Password" autocomplete="new-password" required>
+      <input type="password" name="repeat" placeholder="Repeat password" autocomplete="new-password" required>
+      <button type="submit">Create account</button>
+    </form>
+  </section>
+
+  <form id="form" hidden>
+    <input type="text" id="title" placeholder="What needs to be done?" autocomplete="off">
+    <button type="submit">Add</button>
+  </form>
+
+  <p id="error" hidden></p>
+
+  <ul id="list" hidden></ul>
+  <p id="empty" hidden>Nothing here yet.</p>
+</main>
+
+<script>
+  const form = document.getElementById("form");
+  const titleInput = document.getElementById("title");
+  const list = document.getElementById("list");
+  const empty = document.getElementById("empty");
+  const counter = document.getElementById("counter");
+  const error = document.getElementById("error");
+  const auth = document.getElementById("auth");
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const userBox = document.getElementById("user");
+  const userLogin = document.getElementById("user-login");
+  const logout = document.getElementById("logout");
+
+  async function api(path, options) {
+    const response = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(detailOf(body) || `Request failed (${response.status})`);
+    }
+    return response.status === 204 ? null : response.json();
+  }
+
+  function detailOf(body) {
+    const detail = body?.detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return detail[0]?.msg;
+    return null;
+  }
+
+  function showError(message) {
+    error.textContent = message;
+    error.hidden = !message;
+  }
+
+  function render(tasks) {
+    list.replaceChildren(...tasks.map(taskElement));
+    list.hidden = tasks.length === 0;
+    empty.hidden = tasks.length > 0;
+    const done = tasks.filter((task) => task.done).length;
+    counter.textContent = tasks.length ? `${done} of ${tasks.length} done` : "";
+  }
+
+  function taskElement(task) {
+    const item = document.createElement("li");
+    item.className = task.done ? "done" : "";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = task.done;
+    checkbox.addEventListener("change", () =>
+      run(() => api(`/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ done: checkbox.checked }),
+      }))
+    );
+
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = task.title;
+
+    const remove = document.createElement("button");
+    remove.className = "remove";
+    remove.textContent = "×";
+    remove.title = "Delete";
+    remove.addEventListener("click", () =>
+      run(() => api(`/tasks/${task.id}`, { method: "DELETE" }))
+    );
+
+    item.append(checkbox, title, remove);
+    return item;
+  }
+
+  function renderAuth(user) {
+    showError("");
+    loginForm.reset();
+    registerForm.reset();
+    auth.hidden = Boolean(user);
+    form.hidden = !user;
+    userBox.hidden = !user;
+    userLogin.textContent = user ? user.login : "";
+    if (user) {
+      titleInput.focus();
+      run(async () => {});
+    } else {
+      list.hidden = true;
+      empty.hidden = true;
+      counter.textContent = "";
+    }
+  }
+
+  function showTab(name) {
+    for (const tab of auth.querySelectorAll("[role=tab]")) {
+      tab.setAttribute("aria-selected", String(tab.dataset.tab === name));
+    }
+    for (const panel of auth.querySelectorAll("[data-panel]")) {
+      panel.hidden = panel.dataset.panel !== name;
+    }
+    showError("");
+    auth.querySelector(`[data-panel="${name}"] input`).focus();
+  }
+
+  async function run(action) {
+    try {
+      await action();
+      showError("");
+      render(await api("/tasks"));
+    } catch (problem) {
+      showError(problem.message);
+    }
+  }
+
+  async function submitAuth(action) {
+    try {
+      renderAuth(await action());
+    } catch (problem) {
+      showError(problem.message);
+    }
+  }
+
+  auth.addEventListener("click", (event) => {
+    const tab = event.target.closest("[role=tab]");
+    if (tab) showTab(tab.dataset.tab);
+  });
+
+  loginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(loginForm));
+    submitAuth(() => api("/login", { method: "POST", body: JSON.stringify(data) }));
+  });
+
+  registerForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const { login, password, repeat } = Object.fromEntries(new FormData(registerForm));
+    if (password !== repeat) {
+      showError("Passwords do not match");
+      return;
+    }
+    submitAuth(() => api("/register", { method: "POST", body: JSON.stringify({ login, password }) }));
+  });
+
+  logout.addEventListener("click", () =>
+    submitAuth(async () => {
+      await api("/logout", { method: "POST" });
+      return null;
+    })
+  );
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const title = titleInput.value;
+    run(async () => {
+      await api("/tasks", { method: "POST", body: JSON.stringify({ title }) });
+      titleInput.value = "";
+    });
+  });
+
+  api("/me").then(renderAuth, () => renderAuth(null));
+</script>
+</body>
+</html>
